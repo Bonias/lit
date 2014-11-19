@@ -113,7 +113,10 @@ module Lit
       locale_key = locale_key.to_s
       @locale_cache ||= {}
       unless @locale_cache.has_key?(locale_key)
-        locale = Lit::Locale.where(locale: locale_key).first_or_create!
+        locale = Lit::Locale.where(locale: locale_key).first
+        locale ||= with_separate_connection do
+          Lit::Locale.create!(locale: locale_key)
+        end
         @locale_cache[locale_key] = locale
       end
       @locale_cache[locale_key]
@@ -204,7 +207,9 @@ module Lit
               value = key_without_locale.split('.').last.humanize
             end
           end
-          localization.update_default_value(value)
+          with_separate_connection do
+            localization.update_default_value(value)
+          end
         end
         return localization
       else
@@ -220,11 +225,13 @@ module Lit
     end
 
     def delete_localization(locale, key_without_locale)
-      localization = find_localization_for_delete(locale, key_without_locale)
-      if localization
-        @localizations.delete("#{locale.locale}.#{key_without_locale}")
-        @localization_keys.delete(key_without_locale)
-        localization.destroy # or localization.default_value = nil; localization.save!
+      with_separate_connection do
+        localization = find_localization_for_delete(locale, key_without_locale)
+        if localization
+          @localizations.delete("#{locale.locale}.#{key_without_locale}")
+          @localization_keys.delete(key_without_locale)
+          localization.destroy # or localization.default_value = nil; localization.save!
+        end
       end
     end
 
@@ -275,7 +282,10 @@ module Lit
     end
 
     def find_or_create_localization_key(key_without_locale)
-      localization_key = Lit::LocalizationKey.where(localization_key: key_without_locale).first_or_create!
+      localization_key = Lit::LocalizationKey.where(localization_key: key_without_locale).first
+      localization_key ||= with_separate_connection do
+        Lit::LocalizationKey.create!(localization_key: key_without_locale)
+      end
       @localization_keys[key_without_locale] = localization_key.id
       localization_key
     end
@@ -286,6 +296,12 @@ module Lit
         @hits_counter.incr('hits_counter.' + key)
         @hits_counter.incr('global_hits_counter.' + key_without_locale)
       end
+    end
+
+    def with_separate_connection(&block)
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection(&block)
+      end.join.value
     end
   end
 end
