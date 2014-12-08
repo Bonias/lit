@@ -21,3 +21,10 @@ array:
     - three
   created_at: <%= Time.now %>
   updated_at: <%= Time.now %>
+
+hello_world:
+  locale: en
+  localization_key: hello_world
+  default_value: 'Hello world!'
+  created_at: <%= Time.now %>
+  updated_at: <%= Time.now %>

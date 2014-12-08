@@ -35,12 +35,15 @@ module Lit
       @available_locales_cache = nil
     end
 
+    alias_method :store_translations_without_lit, :store_translations
+
     # Stores the given translations.
     #
     # @param [String] locale the locale (ie "en") to store translations for
     # @param [Hash] data nested key-value pairs to be added as blurbs
     def store_translations(locale, data, options = {})
-      super
+      store_translations_without_lit(locale, data, options)
+
       locales = ::Rails.configuration.i18n.available_locales
       if !locales || locales.map(&:to_s).include?(locale.to_s)
         store_item(locale, data)
@@ -99,6 +102,19 @@ module Lit
     def load_translations(*filenames)
       @cache.load_all_translations
       super
+      load_translations_from_cache
+    end
+
+    def load_translations_from_cache
+      keys    = Lit::LocalizationKey.pluck(:localization_key)
+      locales = Lit::Locale.pluck(:locale)
+
+      locales.each do |locale|
+        translations = {}
+        keys.each { |key| translations[key] = @cache["#{locale}.#{key}"] }
+        translations = @cache.nested_string_keys_to_hash(translations)
+        store_translations_without_lit(locale, translations)
+      end
     end
   end
 end

@@ -29,6 +29,7 @@ module Lit
       I18n.backend.available_locales.each do |l|
         Lit.init.cache.delete_key "#{l}.#{@localization_key.localization_key}"
       end
+      I18n.backend.reload!
       respond_to :js
     end
 

@@ -24,10 +24,9 @@ module Lit
       @hits_counter_working = true
     end
 
-    def [](key)
-      update_hits_count(key)
-      ret = @localizations[key]
-      ret
+    def [](key, fast = false)
+      update_hits_count(key) unless fast
+      @localizations[key]
     end
 
     def []=(key, value)

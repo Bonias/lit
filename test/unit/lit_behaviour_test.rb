@@ -1,6 +1,8 @@
 require 'test_helper'
 
 class LitBehaviourTest < ActiveSupport::TestCase
+  fixtures 'lit/locales'
+
   class Backend < Lit::I18nBackend
   end
 
@@ -79,6 +81,36 @@ class LitBehaviourTest < ActiveSupport::TestCase
 
     assert_equal 'translated foo', I18n.t(:not_existing, scope: ['scope'], default: [:foo])
     assert_equal 'translated foo', find_localization_for('scope.not_existing', 'en').default_value
+  end
+
+  test 'should load translations to local variable @translations on init' do
+    locale           = Lit::Locale.find_by_locale!('en')
+    localization_key = Lit::LocalizationKey.create! do |lk|
+      lk.localization_key = 'my.translation'
+    end
+    Lit::Localization.create! do |l|
+      l.localization_key = localization_key
+      l.locale           = locale
+      l.default_value    = 'My translated value'
+    end
+
+    I18n.backend.send(:init_translations)
+
+    translations =
+      I18n.backend.instance_variable_get(:@translations)[I18n.locale]
+
+    assert translations.has_key?(:my)
+    assert_equal 'My translated value', translations[:my][:translation]
+  end
+
+  test 'should store translations in local variable @translations' do
+    I18n.backend.store_translations(:en, my: { translation: 'My translated value' })
+
+    translations =
+      I18n.backend.instance_variable_get(:@translations)[I18n.locale]
+
+    assert translations.has_key?(:my)
+    assert_equal 'My translated value', translations[:my][:translation]
   end
 
   private
