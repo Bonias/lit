@@ -41,10 +41,7 @@ module Lit
     # @param [Hash] data nested key-value pairs to be added as blurbs
     def store_translations(locale, data, options = {})
       super
-      locales = ::Rails.configuration.i18n.available_locales
-      if !locales || locales.map(&:to_s).include?(locale.to_s)
-        store_item(locale, data)
-      end
+      store_item(locale, data) if initialized?
     end
 
     private
@@ -96,9 +93,23 @@ module Lit
       end
     end
 
-    def load_translations(*filenames)
+    def load_translations_to_cache
+      locales = ::Rails.configuration.i18n.available_locales
+      @translations.each do |locale, data|
+        if !locales || locales.map(&:to_s).include?(locale.to_s)
+          store_item(locale, data)
+        end
+      end
+    end
+
+    def init_translations
+      # load all translations from *.yml, *.rb files to @translations variable
+      load_translations
+      # load translations from database to cache
       @cache.load_all_translations
-      super
+      # load translations from @translations to cache
+      load_translations_to_cache
+      @initialized = true
     end
   end
 end
